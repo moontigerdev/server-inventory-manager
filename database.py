@@ -70,6 +70,30 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS server_bios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            model TEXT,
+            value TEXT,
+            serial TEXT,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS server_bmc (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            model TEXT,
+            value TEXT,
+            serial TEXT,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -216,3 +240,74 @@ def get_server_by_id(server_id):
 
     conn.close()
     return server
+
+
+def upsert_server_inventory(server_id, inventory_data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Clear existing BIOS and BMC data for this server
+    cursor.execute('DELETE FROM server_bios WHERE server_id = ?', (server_id,))
+    cursor.execute('DELETE FROM server_bmc WHERE server_id = ?', (server_id,))
+
+    for item in inventory_data:
+        root_component = item.get('root_component', {})
+        component_desc = root_component.get('description', '')
+
+        if component_desc == 'BIOS':
+            cursor.execute('''
+                INSERT INTO server_bios (server_id, model, value, serial)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                server_id,
+                item.get('model'),
+                item.get('value'),
+                item.get('serial')
+            ))
+        elif component_desc == 'BMC Version':
+            cursor.execute('''
+                INSERT INTO server_bmc (server_id, model, value, serial)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                server_id,
+                item.get('model'),
+                item.get('value'),
+                item.get('serial')
+            ))
+
+    conn.commit()
+    conn.close()
+
+
+def get_all_bios():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT s.id, s.hostname, s.servername, s.primary_ip,
+               b.model, b.value, b.serial, b.last_updated
+        FROM servers s
+        LEFT JOIN server_bios b ON s.id = b.server_id
+        ORDER BY s.hostname
+    ''')
+
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+
+def get_all_bmc():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT s.id, s.hostname, s.servername, s.primary_ip,
+               b.model, b.value, b.serial, b.last_updated
+        FROM servers s
+        LEFT JOIN server_bmc b ON s.id = b.server_id
+        ORDER BY s.hostname
+    ''')
+
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
