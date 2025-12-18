@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Inventory Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+        }
+
+        .sync-btn {
+            background-color: white;
+            color: #667eea;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .sync-btn:hover {
+            background-color: #f0f0f0;
+            transform: translateY(-2px);
+        }
+
+        .sync-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .server-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+
+        .server-header {
+            background: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .server-header h2 {
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-online {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-offline {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-unknown {
+            background-color: #e2e3e5;
+            color: #383d41;
+        }
+
+        .server-body {
+            padding: 15px;
+        }
+
+        .server-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-item {
+            margin-bottom: 8px;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .info-item span {
+            font-size: 0.9rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .tag {
+            background-color: #e7f1ff;
+            color: #0056b3;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+
+        .hardware-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .hardware-section h3 {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .hardware-item {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+
+        .hardware-item label {
+            display: block;
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .hardware-item span {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+        }
+
+        .modal-header h2 {
+            margin-bottom: 5px;
+        }
+
+        .modal-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .detail-section {
+            margin-bottom: 20px;
+        }
+
+        .detail-section h3 {
+            font-size: 1rem;
+            color: #667eea;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .detail-item {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+        }
+
+        .detail-item label {
+            display: block;
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .detail-item span {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .ip-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .ip-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .ip-item:last-child {
+            border-bottom: none;
+        }
+
+        .ip-primary {
+            background: #d4edda;
+            color: #155724;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .empty-state h2 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: #999;
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Server Inventory Manager</h1>
+            <button class="sync-btn" onclick="syncServers()">Sync from API</button>
+        </header>
+
+        <div id="alertContainer"></div>
+
+        <div class="stats-bar">
+            <div class="stat-card">
+                <h3>Total Servers</h3>
+                <div class="value" id="totalServers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Online</h3>
+                <div class="value" id="onlineServers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Offline</h3>
+                <div class="value" id="offlineServers">0</div>
+            </div>
+        </div>
+
+        <div id="serverContainer">
+            <div class="loading">Loading servers...</div>
+        </div>
+    </div>
+
+    <div class="modal" id="serverModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+                <h2 id="modalHostname"></h2>
+                <p id="modalServername"></p>
+            </div>
+            <div class="modal-body" id="modalBody">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let servers = [];
+
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/servers');
+                servers = await response.json();
+                renderServers();
+                updateStats();
+            } catch (error) {
+                document.getElementById('serverContainer').innerHTML = `
+                    <div class="empty-state">
+                        <h2>Error Loading Servers</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderServers() {
+            const container = document.getElementById('serverContainer');
+
+            if (servers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h2>No Servers Found</h2>
+                        <p>Click "Sync from API" to fetch server data from TenantOS</p>
+                        <button class="sync-btn" onclick="syncServers()">Sync Now</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `<div class="server-grid">${servers.map(renderServerCard).join('')}</div>`;
+        }
+
+        function renderServerCard(server) {
+            const statusClass = getStatusClass(server.power_status);
+            const memoryGB = server.memory_total_mb ? Math.round(server.memory_total_mb / 1024) : null;
+            const diskTB = server.disk_total_mib ? (server.disk_total_mib / 1024 / 1024).toFixed(2) : null;
+
+            return `
+                <div class="server-card" onclick="showServerDetails(${server.id})">
+                    <div class="server-header">
+                        <h2>${server.hostname || 'Unknown'}</h2>
+                        <span class="status-badge ${statusClass}">${server.power_status || 'Unknown'}</span>
+                    </div>
+                    <div class="server-body">
+                        <div class="server-info">
+                            <div class="info-item">
+                                <label>Server Name</label>
+                                <span>${server.servername || 'N/A'}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Primary IP</label>
+                                <span>${server.primary_ip || 'N/A'}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>OS</label>
+                                <span>${server.os || 'N/A'}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Type</label>
+                                <span>${server.server_type || 'N/A'}</span>
+                            </div>
+                        </div>
+                        ${server.tags && server.tags.length > 0 ? `
+                            <div class="tags">
+                                ${server.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${server.cpu_model || memoryGB || diskTB ? `
+                            <div class="hardware-section">
+                                <h3>Hardware Overview</h3>
+                                <div class="hardware-grid">
+                                    ${server.cpu_model ? `
+                                        <div class="hardware-item">
+                                            <label>CPU</label>
+                                            <span>${server.cpu_model}</span>
+                                        </div>
+                                    ` : ''}
+                                    ${memoryGB ? `
+                                        <div class="hardware-item">
+                                            <label>Memory</label>
+                                            <span>${memoryGB} GB</span>
+                                        </div>
+                                    ` : ''}
+                                    ${diskTB ? `
+                                        <div class="hardware-item">
+                                            <label>Storage</label>
+                                            <span>${diskTB} TB</span>
+                                        </div>
+                                    ` : ''}
+                                    ${server.cpu_cores ? `
+                                        <div class="hardware-item">
+                                            <label>Cores/Threads</label>
+                                            <span>${server.cpu_cores}/${server.cpu_threads || 'N/A'}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getStatusClass(status) {
+            if (!status) return 'status-unknown';
+            if (status.toLowerCase() === 'online') return 'status-online';
+            if (status.toLowerCase() === 'offline') return 'status-offline';
+            return 'status-unknown';
+        }
+
+        function updateStats() {
+            document.getElementById('totalServers').textContent = servers.length;
+            document.getElementById('onlineServers').textContent = servers.filter(s => s.power_status === 'online').length;
+            document.getElementById('offlineServers').textContent = servers.filter(s => s.power_status === 'offline').length;
+        }
+
+        async function showServerDetails(serverId) {
+            try {
+                const response = await fetch(`/api/servers/${serverId}`);
+                const server = await response.json();
+
+                document.getElementById('modalHostname').textContent = server.hostname || 'Unknown';
+                document.getElementById('modalServername').textContent = server.servername || '';
+
+                const memoryGB = server.memory_total_mb ? Math.round(server.memory_total_mb / 1024) : null;
+                const diskTB = server.disk_total_mib ? (server.disk_total_mib / 1024 / 1024).toFixed(2) : null;
+
+                document.getElementById('modalBody').innerHTML = `
+                    <div class="detail-section">
+                        <h3>General Information</h3>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Status</label>
+                                <span class="status-badge ${getStatusClass(server.power_status)}">${server.power_status || 'Unknown'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Operating System</label>
+                                <span>${server.os || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Server Type</label>
+                                <span>${server.server_type || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Assignment Date</label>
+                                <span>${server.assignment_date || 'N/A'}</span>
+                            </div>
+                        </div>
+                        ${server.description ? `<p style="margin-top: 15px; color: #666;">${server.description}</p>` : ''}
+                        ${server.tags && server.tags.length > 0 ? `
+                            <div class="tags" style="margin-top: 15px;">
+                                ${server.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="detail-section">
+                        <h3>IP Addresses</h3>
+                        <div class="ip-list">
+                            ${server.ip_addresses && server.ip_addresses.length > 0 ?
+                                server.ip_addresses.map(ip => `
+                                    <div class="ip-item">
+                                        <span>${ip.ip_address} ${ip.is_primary ? '<span class="ip-primary">PRIMARY</span>' : ''}</span>
+                                        <span style="color: #666; font-size: 0.85rem;">${ip.is_ipv4 ? 'IPv4' : 'IPv6'}</span>
+                                    </div>
+                                `).join('')
+                                : '<p>No IP addresses assigned</p>'
+                            }
+                        </div>
+                    </div>
+
+                    ${server.cpu_model || memoryGB || diskTB ? `
+                        <div class="detail-section">
+                            <h3>Hardware Details</h3>
+                            <div class="detail-grid">
+                                ${server.mainboard_model ? `
+                                    <div class="detail-item">
+                                        <label>Mainboard</label>
+                                        <span>${server.mainboard_model} ${server.mainboard_version ? `(${server.mainboard_version})` : ''}</span>
+                                    </div>
+                                ` : ''}
+                                ${server.cpu_model ? `
+                                    <div class="detail-item">
+                                        <label>CPU</label>
+                                        <span>${server.cpu_model}</span>
+                                    </div>
+                                ` : ''}
+                                ${server.cpu_count ? `
+                                    <div class="detail-item">
+                                        <label>CPU Count</label>
+                                        <span>${server.cpu_count}x</span>
+                                    </div>
+                                ` : ''}
+                                ${server.cpu_cores ? `
+                                    <div class="detail-item">
+                                        <label>Cores / Threads</label>
+                                        <span>${server.cpu_cores} / ${server.cpu_threads || 'N/A'}</span>
+                                    </div>
+                                ` : ''}
+                                ${server.cpu_mhz ? `
+                                    <div class="detail-item">
+                                        <label>CPU Speed</label>
+                                        <span>${server.cpu_mhz} MHz ${server.cpu_mhz_turbo ? `(Turbo: ${server.cpu_mhz_turbo} MHz)` : ''}</span>
+                                    </div>
+                                ` : ''}
+                                ${memoryGB ? `
+                                    <div class="detail-item">
+                                        <label>Total Memory</label>
+                                        <span>${memoryGB} GB (${server.memory_count || 0} modules)</span>
+                                    </div>
+                                ` : ''}
+                                ${diskTB ? `
+                                    <div class="detail-item">
+                                        <label>Total Storage</label>
+                                        <span>${diskTB} TB (${server.disk_count || 0} disks)</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            ${server.disk_details && server.disk_details.length > 0 ? `
+                                <h4 style="margin-top: 15px; margin-bottom: 10px; color: #666;">Disk Details</h4>
+                                <div class="ip-list">
+                                    ${server.disk_details.map(disk => `
+                                        <div class="ip-item">
+                                            <span>${disk.model}</span>
+                                            <span style="color: #666; font-size: 0.85rem;">${(disk.size / 1024).toFixed(1)} GB</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                `;
+
+                document.getElementById('serverModal').classList.add('active');
+            } catch (error) {
+                showAlert('Error loading server details: ' + error.message, 'error');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('serverModal').classList.remove('active');
+        }
+
+        async function syncServers() {
+            const btn = document.querySelector('.sync-btn');
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+
+            try {
+                const response = await fetch('/api/sync', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    await loadServers();
+                } else {
+                    showAlert('Sync failed: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Sync error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sync from API';
+            }
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.innerHTML = '';
+            container.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Close modal on outside click
+        document.getElementById('serverModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Initial load
+        loadServers();
+    </script>
+</body>
+</html>
