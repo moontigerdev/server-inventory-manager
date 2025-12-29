@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_KEY = os.getenv('TENANTOS_API_KEY')
-API_URL = os.getenv('TENANTOS_API_URL', 'https://manage.linveo.com/api')
+API_URL = os.getenv('TENANTOS_API_URL')
 
 
 def get_headers():
